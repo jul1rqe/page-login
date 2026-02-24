@@ -1,83 +1,115 @@
-/* Container */
 body {
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background: linear-gradient(to right, #a1c4fd, #c2e9fb);
+  font-family: 'Segoe UI', sans-serif;
+  background: linear-gradient(to right, #6a11cb, #2575fc);
   margin: 0;
-  padding: 0;
 }
 
 .container {
   max-width: 500px;
   margin: 50px auto;
+  background: white;
   padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 10px 25px rgba(0,0,0,0.2);
   text-align: center;
 }
 
-/* Cards */
-.card {
-  background: white;
-  padding: 20px;
-  border-radius: 12px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-  margin-bottom: 20px;
-}
-
-/* Inputs */
 input {
-  width: calc(100% - 22px);
+  width: 80%;
   padding: 10px;
-  margin: 5px 0;
-  border-radius: 6px;
+  margin: 8px 0;
+  border-radius: 8px;
   border: 1px solid #ccc;
 }
 
-/* Buttons */
 button {
-  background-color: #4CAF50;
-  color: white;
+  padding: 8px 15px;
   border: none;
-  padding: 10px 20px;
-  border-radius: 6px;
+  border-radius: 8px;
   cursor: pointer;
-  margin: 5px;
-  transition: background 0.3s;
+  font-weight: bold;
+  color: white;
+  background: linear-gradient(45deg,#6a11cb,#2575fc);
 }
 
-button:hover {
-  background-color: #45a049;
+.add-item {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
 }
 
-/* Logout button */
-.logout {
-  background-color: #f44336;
-}
-
-.logout:hover {
-  background-color: #d32f2f;
-}
-
-/* Shopping list */
 .shopping-list {
   list-style: none;
   padding: 0;
 }
 
-.shopping-list li {
-  background: #f0f0f0;
-  margin: 5px 0;
-  padding: 10px;
-  border-radius: 6px;
-  text-align: left;
-}
-
-/* Add item section */
-.add-item {
+/* ITEM */
+.course-item {
+  background: white;
+  margin: 10px 0;
+  padding: 12px 15px;
+  border-radius: 12px;
   display: flex;
-  justify-content: center;
-  margin-bottom: 15px;
+  justify-content: space-between;
+  align-items: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+  transition: 0.3s;
 }
 
-.add-item input {
-  flex: 1;
-  margin-right: 5px;
+.course-item:hover {
+  transform: translateY(-3px);
 }
+
+.course-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.badge {
+  background: #6a11cb;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 50px;
+}
+
+.edit-btn { background:#ffc107; }
+.delete-btn { background:#dc3545; }
+
+/* SUCCESS */
+.success-message {
+  margin-top:10px;
+  padding:10px;
+  background:#d4edda;
+  color:#155724;
+  border-radius:8px;
+}
+
+/* MODAL */
+.modal {
+  position:fixed;
+  top:0;
+  left:0;
+  width:100%;
+  height:100%;
+  background:rgba(0,0,0,0.5);
+  display:none;
+  justify-content:center;
+  align-items:center;
+}
+
+.modal-content {
+  background:white;
+  padding:20px;
+  border-radius:12px;
+  width:300px;
+}
+
+.modal-buttons {
+  display:flex;
+  justify-content:space-between;
+  margin-top:15px;
+}
+
+.cancel-btn { background:#6c757d; }
+.confirm-btn { background:#dc3545; }

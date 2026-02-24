@@ -1,145 +1,211 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
-  <meta charset="UTF-8">
-  <title id="pageTitle">Page login test</title>
-  <link rel="stylesheet" href="style.css">
-
-  <!-- Firebase v9 compat -->
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<meta charset="UTF-8">
+<title>TopMarket - Connexion</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>🛒 Liste de courses Firebase</h1>
 
-    <!-- Formulaire d'auth -->
-    <div id="auth" class="card">
-      <input id="email" type="email" placeholder="Email">
-      <input id="password" type="password" placeholder="Mot de passe">
-      <div class="buttons">
-        <button onclick="signup()">S’inscrire</button>
-        <button onclick="login()">Se connecter</button>
-      </div>
-    </div>
+<div class="container">
+  <h1>🛒 Liste de courses</h1>
 
-    <!-- Page utilisateur -->
-    <div id="welcome" class="card" style="display:none;">
-      <h2>Bienvenue <span id="user"></span> !</h2>
-      <button class="logout" onclick="logout()">Déconnexion</button>
-
-      <h3>Ajouter un item :</h3>
-      <div class="add-item">
-        <input id="item" type="text" placeholder="Ex: Lait">
-        <button onclick="addItem()">Ajouter</button>
-      </div>
-
-      <h3>Votre liste :</h3>
-      <ul id="shoppingList" class="shopping-list"></ul>
+  <div id="auth" class="card">
+    <input id="firstName" placeholder="Prénom">
+    <input id="lastName" placeholder="Nom">
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Mot de passe">
+    <div class="buttons">
+      <button id="signupBtn">S’inscrire</button>
+      <button id="loginBtn">Se connecter</button>
     </div>
   </div>
 
-  <script>
-    // 🔹 Config Firebase
-    const firebaseConfig = {
-      apiKey: "AIzaSyB1ZAPhOMsc9DhFTiZX1RGrQxhu5DqUN0o",
-      authDomain: "page-login-11744.firebaseapp.com",
-      projectId: "page-login-11744",
-      storageBucket: "page-login-11744.firebasestorage.app",
-      messagingSenderId: "418934428800",
-      appId: "1:418934428800:web:f98bb98372f3fd65d50265"
-    };
+  <div id="welcome" class="card" style="display:none;">
+    <h2>Bienvenue <span id="user"></span> !</h2>
+    <button id="logoutBtn">Déconnexion</button>
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
+    <div class="add-item">
+      <input id="itemInput" placeholder="Nom de l'article">
+      <input id="quantityInput" type="number" placeholder="Quantité" min="1">
+      <button id="addItemBtn">Ajouter</button>
+    </div>
 
-    // 🔹 SIGNUP
-    function signup() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
+    <div id="successMessage" class="success-message" style="display:none;">
+      ✅ Aliment ajouté avec succès !
+    </div>
 
-      auth.createUserWithEmailAndPassword(email, password)
-        .then(userCredential => {
-          const user = userCredential.user;
-          db.collection("default").doc(user.uid).set({
-            email: user.email,
-            created: firebase.firestore.FieldValue.serverTimestamp()
-          })
-          .then(() => showWelcome(user))
-          .catch(err => alert("Erreur Firestore: " + err.message));
-        })
-        .catch(err => alert("Erreur Auth: " + err.message));
+    <ul id="shoppingList" class="shopping-list"></ul>
+  </div>
+</div>
+
+<div id="confirmModal" class="modal">
+  <div class="modal-content">
+    <h3>Confirmer la suppression</h3>
+    <div class="modal-buttons">
+      <button id="cancelDeleteBtn">Annuler</button>
+      <button id="confirmDeleteBtn">Supprimer</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyB1ZAPhOMsc9DhFTiZX1RGrQxhu5DqUN0o",
+  authDomain: "page-login-11744.firebaseapp.com",
+  projectId: "page-login-11744",
+  storageBucket: "page-login-11744.firebasestorage.app",
+  messagingSenderId: "418934428800",
+  appId: "1:418934428800:web:f98bb98372f3fd65d50265"
+};
+firebase.initializeApp(firebaseConfig);
+
+const auth = firebase.auth();
+const db = firebase.firestore();
+const formatTS = d => firebase.firestore.Timestamp.fromDate(d || new Date());
+
+const authUI = document.getElementById("auth");
+const welcomeUI = document.getElementById("welcome");
+const userSpan = document.getElementById("user");
+const listEl = document.getElementById("shoppingList");
+const successMsg = document.getElementById("successMessage");
+
+let unsubscribeItems = null;
+let itemToDelete = null;
+
+// ---------------- AUTH ----------------
+document.getElementById("signupBtn").addEventListener("click", signup);
+document.getElementById("loginBtn").addEventListener("click", login);
+document.getElementById("logoutBtn").addEventListener("click", logout);
+
+function signup() {
+  const f = document.getElementById("firstName").value.trim();
+  const l = document.getElementById("lastName").value.trim();
+  const e = document.getElementById("email").value.trim();
+  const p = document.getElementById("password").value;
+  if (!f||!l||!e||!p){ alert("Tous les champs sont obligatoires"); return; }
+
+  auth.createUserWithEmailAndPassword(e,p)
+    .then(uc=>{
+      const u = uc.user;
+      db.collection("credentials").doc(u.uid).set({
+        uid: u.uid, firstName: f, lastName: l, email: u.email,
+        createdAt: formatTS(), lastLogin: formatTS()
+      }).then(()=> showWelcome(u));
+    }).catch(err=>alert(err.message));
+}
+
+function login() {
+  const e=document.getElementById("email").value.trim();
+  const p=document.getElementById("password").value;
+  auth.signInWithEmailAndPassword(e,p).catch(err=>alert(err.message));
+}
+
+function logout() {
+  auth.signOut();
+  authUI.style.display="block";
+  welcomeUI.style.display="none";
+  listEl.innerHTML="";
+  document.title = "TopMarket - Connexion";
+  if (unsubscribeItems) unsubscribeItems();
+}
+
+// ---------------- SHOW USER ----------------
+auth.onAuthStateChanged(u=>{
+  if(u){
+    db.collection("credentials").doc(u.uid).update({ lastLogin: formatTS() });
+    showWelcome(u);
+  } else {
+    document.title = "TopMarket - Connexion";
+    if (unsubscribeItems) unsubscribeItems();
+  }
+});
+
+function showWelcome(u){
+  db.collection("credentials").doc(u.uid).get().then(doc=>{
+    if(doc.exists){
+      const d=doc.data();
+      userSpan.innerText = `${d.firstName} ${d.lastName}`;
+      document.title = `${d.firstName} ${d.lastName} - Courses`;
     }
+  });
+  authUI.style.display="none";
+  welcomeUI.style.display="block";
+  loadItemsRealtime(u.uid);
+}
 
-    // 🔹 LOGIN
-    function login() {
-      const email = document.getElementById("email").value;
-      const password = document.getElementById("password").value;
-
-      auth.signInWithEmailAndPassword(email, password)
-        .then(userCredential => showWelcome(userCredential.user))
-        .catch(err => alert(err.message));
-    }
-
-    // 🔹 LOGOUT
-    function logout() {
-      auth.signOut();
-      document.getElementById("auth").style.display = "block";
-      document.getElementById("welcome").style.display = "none";
-      document.getElementById("shoppingList").innerHTML = "";
-      document.getElementById("pageTitle").innerText = "Page login test";
-    }
-
-    // 🔹 SHOW WELCOME
-    function showWelcome(user) {
-      document.getElementById("user").innerText = user.email;
-      document.getElementById("auth").style.display = "none";
-      document.getElementById("welcome").style.display = "block";
-      document.getElementById("pageTitle").innerText = `Page login test – Bienvenue ${user.email}`;
-      loadItems(user.uid);
-    }
-
-    // 🔹 ADD ITEM
-    function addItem() {
-      const itemText = document.getElementById("item").value;
-      const user = auth.currentUser;
-      if (!itemText || !user) return;
-
-      db.collection("default").doc(user.uid).collection("shoppingList")
-        .add({
-          name: itemText,
-          created: firebase.firestore.FieldValue.serverTimestamp()
-        })
-        .then(() => {
-          document.getElementById("item").value = "";
-          loadItems(user.uid);
-        });
-    }
-
-    // 🔹 LOAD ITEMS
-    function loadItems(uid) {
-      const listEl = document.getElementById("shoppingList");
-      listEl.innerHTML = "";
-
-      db.collection("default").doc(uid).collection("shoppingList")
-        .orderBy("created")
-        .get()
-        .then(snapshot => {
-          snapshot.docs.forEach(doc => {
-            const li = document.createElement("li");
-            li.textContent = doc.data().name;
-            listEl.appendChild(li);
-          });
-        });
-    }
-
-    // 🔹 SESSION PERSIST
-    auth.onAuthStateChanged(user => {
-      if (user) showWelcome(user);
-      else document.getElementById("pageTitle").innerText = "Page login test";
+// ---------------- AJOUT ----------------
+document.getElementById("addItemBtn").addEventListener("click", ()=>{
+  const u = auth.currentUser;
+  const item = document.getElementById("itemInput").value.trim();
+  const qty = parseInt(document.getElementById("quantityInput").value);
+  if(!u || !item || !qty || qty<1) return;
+  const docRef = db.collection("courses").doc();
+  docRef.set({ uidUser: u.uid, uid: docRef.id, item, quantity: qty, addedAt: formatTS() })
+    .then(()=>{
+      document.getElementById("itemInput").value="";
+      document.getElementById("quantityInput").value="";
+      successMsg.style.display="block";
+      setTimeout(()=>successMsg.style.display="none",2500);
     });
-  </script>
+});
+
+// ---------------- LISTE TEMPS RÉEL (sans orderBy) ----------------
+function loadItemsRealtime(uidUser){
+  if(unsubscribeItems) unsubscribeItems();
+  unsubscribeItems = db.collection("courses")
+    .where("uidUser","==",uidUser)
+    .onSnapshot(snapshot=>{
+      listEl.innerHTML="";
+      snapshot.forEach(doc=>{
+        const d=doc.data();
+        const li=document.createElement("li");
+        li.classList.add("course-item");
+        li.innerHTML = `
+          <div class="course-left">
+            <span>${d.item}</span>
+            <span class="badge">${d.quantity}</span>
+          </div>
+          <div class="course-actions">
+            <button class="edit-btn">✏</button>
+            <button class="delete-btn">🗑</button>
+          </div>`;
+        listEl.appendChild(li);
+        li.querySelector(".edit-btn").addEventListener("click",()=>editItem(doc.id,d.item,d.quantity));
+        li.querySelector(".delete-btn").addEventListener("click",()=>deleteItem(doc.id));
+      });
+    });
+}
+
+// ---------------- EDIT ----------------
+function editItem(docId, currItem, currQty){
+  const newItem = prompt("Modifier le nom :", currItem);
+  if(!newItem) return;
+  const newQty = parseInt(prompt("Modifier la quantité :", currQty));
+  if(isNaN(newQty) || newQty<1) return;
+  db.collection("courses").doc(docId).update({ item:newItem, quantity:newQty });
+}
+
+// ---------------- DELETE ----------------
+function deleteItem(docId){
+  itemToDelete = docId;
+  document.getElementById("confirmModal").style.display="flex";
+}
+
+document.getElementById("cancelDeleteBtn").addEventListener("click",()=>{
+  itemToDelete = null;
+  document.getElementById("confirmModal").style.display="none";
+});
+document.getElementById("confirmDeleteBtn").addEventListener("click",()=>{
+  if(!itemToDelete) return;
+  db.collection("courses").doc(itemToDelete).delete().then(()=>{
+    document.getElementById("confirmModal").style.display="none";
+    itemToDelete = null;
+  });
+});
+</script>
 </body>
 </html>
