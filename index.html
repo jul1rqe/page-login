@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Cloud Auth Test</title>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <style>
+    body { font-family: sans-serif; margin: 50px; }
+    input { margin: 5px; }
+    button { margin: 5px; }
+  </style>
+</head>
+<body>
+  <h1>🚀 Firebase Auth + Firestore + Docker + CI/CD</h1>
+
+  <!-- Formulaire Auth -->
+  <div id="auth">
+    <input id="email" type="email" placeholder="Email">
+    <input id="password" type="password" placeholder="Password">
+    <button onclick="signup()">S’inscrire</button>
+    <button onclick="login()">Se connecter</button>
+  </div>
+
+  <!-- Page utilisateur -->
+  <div id="welcome" style="display:none;">
+    <h2>Bienvenue <span id="user"></span> !</h2>
+    <button onclick="logout()">Déconnexion</button>
+    
+    <h3>Ajouter une note :</h3>
+    <input id="note" type="text" placeholder="Votre note">
+    <button onclick="addNote()">Ajouter</button>
+    
+    <h3>Vos notes :</h3>
+    <ul id="notesList"></ul>
+  </div>
+
+  <script>
+    // 🔹 Remplace par ta config Firebase
+    const firebaseConfig = {
+      apiKey: "AIzaSyB1ZAPhOMsc9DhFTiZX1RGrQxhu5DqUN0o",
+      authDomain: "page-login-11744.firebaseapp.com",
+      projectId: "page-login-11744",
+      storageBucket: "page-login-11744.firebasestorage.app",
+      messagingSenderId: "418934428800",
+      appId: "1:418934428800:web:f98bb98372f3fd65d50265"
+    };
+
+    // Init Firebase
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+
+    // 🔹 Auth functions
+    function signup() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.createUserWithEmailAndPassword(email, password)
+        .then(user => showWelcome(user.user))
+        .catch(err => alert(err.message));
+    }
+
+    function login() {
+      const email = document.getElementById("email").value;
+      const password = document.getElementById("password").value;
+      auth.signInWithEmailAndPassword(email, password)
+        .then(user => showWelcome(user.user))
+        .catch(err => alert(err.message));
+    }
+
+    function logout() {
+      auth.signOut();
+      document.getElementById("auth").style.display = "block";
+      document.getElementById("welcome").style.display = "none";
+      document.getElementById("notesList").innerHTML = "";
+    }
+
+    function showWelcome(user) {
+      document.getElementById("user").innerText = user.email;
+      document.getElementById("auth").style.display = "none";
+      document.getElementById("welcome").style.display = "block";
+      loadNotes(user.uid);
+    }
+
+    // 🔹 Firestore functions
+    function addNote() {
+      const noteText = document.getElementById("note").value;
+      const user = auth.currentUser;
+      if (!noteText || !user) return;
+      db.collection("users").doc(user.uid).collection("notes")
+        .add({ text: noteText, created: new Date() })
+        .then(() => {
+          document.getElementById("note").value = "";
+          loadNotes(user.uid);
+        });
+    }
+
+    function loadNotes(uid) {
+      const notesList = document.getElementById("notesList");
+      notesList.innerHTML = "";
+      db.collection("users").doc(uid).collection("notes")
+        .orderBy("created")
+        .get()
+        .then(snapshot => {
+          snapshot.docs.forEach(doc => {
+            const li = document.createElement("li");
+            li.textContent = doc.data().text;
+            notesList.appendChild(li);
+          });
+        });
+    }
+
+    // 🔹 Keep user logged in on refresh
+    auth.onAuthStateChanged(user => {
+      if (user) showWelcome(user);
+    });
+  </script>
+</body>
+</html>
