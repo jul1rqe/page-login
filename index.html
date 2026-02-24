@@ -1,43 +1,47 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 <head>
   <meta charset="UTF-8">
-  <title>Cloud Auth Test</title>
+  <title id="pageTitle">Page login test</title>
+  <link rel="stylesheet" href="style.css">
+
+  <!-- Firebase v9 compat -->
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <style>
-    body { font-family: sans-serif; margin: 50px; }
-    input { margin: 5px; }
-    button { margin: 5px; }
-  </style>
 </head>
 <body>
-  <h1>🚀 Firebase Auth + Firestore + Docker + CI/CD</h1>
+  <div class="container">
+    <h1>🛒 Liste de courses Firebase</h1>
 
-  <!-- Formulaire Auth -->
-  <div id="auth">
-    <input id="email" type="email" placeholder="Email">
-    <input id="password" type="password" placeholder="Password">
-    <button onclick="signup()">S’inscrire</button>
-    <button onclick="login()">Se connecter</button>
-  </div>
+    <!-- Formulaire d'auth -->
+    <div id="auth" class="card">
+      <input id="email" type="email" placeholder="Email">
+      <input id="password" type="password" placeholder="Mot de passe">
+      <div class="buttons">
+        <button onclick="signup()">S’inscrire</button>
+        <button onclick="login()">Se connecter</button>
+      </div>
+    </div>
 
-  <!-- Page utilisateur -->
-  <div id="welcome" style="display:none;">
-    <h2>Bienvenue <span id="user"></span> !</h2>
-    <button onclick="logout()">Déconnexion</button>
-    
-    <h3>Ajouter une note :</h3>
-    <input id="note" type="text" placeholder="Votre note">
-    <button onclick="addNote()">Ajouter</button>
-    
-    <h3>Vos notes :</h3>
-    <ul id="notesList"></ul>
+    <!-- Page utilisateur -->
+    <div id="welcome" class="card" style="display:none;">
+      <h2>Bienvenue <span id="user"></span> !</h2>
+      <button class="logout" onclick="logout()">Déconnexion</button>
+
+      <h3>Ajouter un item :</h3>
+      <div class="add-item">
+        <input id="item" type="text" placeholder="Ex: Lait">
+        <button onclick="addItem()">Ajouter</button>
+      </div>
+
+      <h3>Votre liste :</h3>
+      <ul id="shoppingList" class="shopping-list"></ul>
+    </div>
   </div>
 
   <script>
-    // 🔹 Remplace par ta config Firebase
+    // 🔹 Config Firebase
     const firebaseConfig = {
       apiKey: "AIzaSyB1ZAPhOMsc9DhFTiZX1RGrQxhu5DqUN0o",
       authDomain: "page-login-11744.firebaseapp.com",
@@ -47,73 +51,94 @@
       appId: "1:418934428800:web:f98bb98372f3fd65d50265"
     };
 
-    // Init Firebase
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
 
-    // 🔹 Auth functions
+    // 🔹 SIGNUP
     function signup() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
+
       auth.createUserWithEmailAndPassword(email, password)
-        .then(user => showWelcome(user.user))
-        .catch(err => alert(err.message));
+        .then(userCredential => {
+          const user = userCredential.user;
+          db.collection("default").doc(user.uid).set({
+            email: user.email,
+            created: firebase.firestore.FieldValue.serverTimestamp()
+          })
+          .then(() => showWelcome(user))
+          .catch(err => alert("Erreur Firestore: " + err.message));
+        })
+        .catch(err => alert("Erreur Auth: " + err.message));
     }
 
+    // 🔹 LOGIN
     function login() {
       const email = document.getElementById("email").value;
       const password = document.getElementById("password").value;
+
       auth.signInWithEmailAndPassword(email, password)
-        .then(user => showWelcome(user.user))
+        .then(userCredential => showWelcome(userCredential.user))
         .catch(err => alert(err.message));
     }
 
+    // 🔹 LOGOUT
     function logout() {
       auth.signOut();
       document.getElementById("auth").style.display = "block";
       document.getElementById("welcome").style.display = "none";
-      document.getElementById("notesList").innerHTML = "";
+      document.getElementById("shoppingList").innerHTML = "";
+      document.getElementById("pageTitle").innerText = "Page login test";
     }
 
+    // 🔹 SHOW WELCOME
     function showWelcome(user) {
       document.getElementById("user").innerText = user.email;
       document.getElementById("auth").style.display = "none";
       document.getElementById("welcome").style.display = "block";
-      loadNotes(user.uid);
+      document.getElementById("pageTitle").innerText = `Page login test – Bienvenue ${user.email}`;
+      loadItems(user.uid);
     }
 
-    // 🔹 Firestore functions
-    function addNote() {
-      const noteText = document.getElementById("note").value;
+    // 🔹 ADD ITEM
+    function addItem() {
+      const itemText = document.getElementById("item").value;
       const user = auth.currentUser;
-      if (!noteText || !user) return;
-      db.collection("users").doc(user.uid).collection("notes")
-        .add({ text: noteText, created: new Date() })
+      if (!itemText || !user) return;
+
+      db.collection("default").doc(user.uid).collection("shoppingList")
+        .add({
+          name: itemText,
+          created: firebase.firestore.FieldValue.serverTimestamp()
+        })
         .then(() => {
-          document.getElementById("note").value = "";
-          loadNotes(user.uid);
+          document.getElementById("item").value = "";
+          loadItems(user.uid);
         });
     }
 
-    function loadNotes(uid) {
-      const notesList = document.getElementById("notesList");
-      notesList.innerHTML = "";
-      db.collection("users").doc(uid).collection("notes")
+    // 🔹 LOAD ITEMS
+    function loadItems(uid) {
+      const listEl = document.getElementById("shoppingList");
+      listEl.innerHTML = "";
+
+      db.collection("default").doc(uid).collection("shoppingList")
         .orderBy("created")
         .get()
         .then(snapshot => {
           snapshot.docs.forEach(doc => {
             const li = document.createElement("li");
-            li.textContent = doc.data().text;
-            notesList.appendChild(li);
+            li.textContent = doc.data().name;
+            listEl.appendChild(li);
           });
         });
     }
 
-    // 🔹 Keep user logged in on refresh
+    // 🔹 SESSION PERSIST
     auth.onAuthStateChanged(user => {
       if (user) showWelcome(user);
+      else document.getElementById("pageTitle").innerText = "Page login test";
     });
   </script>
 </body>

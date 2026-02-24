@@ -1,0 +1,83 @@
+/* Container */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(to right, #a1c4fd, #c2e9fb);
+  margin: 0;
+  padding: 0;
+}
+
+.container {
+  max-width: 500px;
+  margin: 50px auto;
+  padding: 20px;
+  text-align: center;
+}
+
+/* Cards */
+.card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  margin-bottom: 20px;
+}
+
+/* Inputs */
+input {
+  width: calc(100% - 22px);
+  padding: 10px;
+  margin: 5px 0;
+  border-radius: 6px;
+  border: 1px solid #ccc;
+}
+
+/* Buttons */
+button {
+  background-color: #4CAF50;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  margin: 5px;
+  transition: background 0.3s;
+}
+
+button:hover {
+  background-color: #45a049;
+}
+
+/* Logout button */
+.logout {
+  background-color: #f44336;
+}
+
+.logout:hover {
+  background-color: #d32f2f;
+}
+
+/* Shopping list */
+.shopping-list {
+  list-style: none;
+  padding: 0;
+}
+
+.shopping-list li {
+  background: #f0f0f0;
+  margin: 5px 0;
+  padding: 10px;
+  border-radius: 6px;
+  text-align: left;
+}
+
+/* Add item section */
+.add-item {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 15px;
+}
+
+.add-item input {
+  flex: 1;
+  margin-right: 5px;
+}
