@@ -4,9 +4,6 @@
 <meta charset="UTF-8">
 <title>TopMarket - Connexion</title>
 <link rel="stylesheet" href="style.css">
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
 
@@ -52,7 +49,12 @@
   </div>
 </div>
 
-<script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-app.js";
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, updateProfile } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, getDoc, updateDoc, deleteDoc, onSnapshot, query, where, Timestamp } from "https://www.gstatic.com/firebasejs/12.9.0/firebase-firestore.js";
+
+// ---------------- CONFIG ----------------
 const firebaseConfig = {
   apiKey: "AIzaSyB1ZAPhOMsc9DhFTiZX1RGrQxhu5DqUN0o",
   authDomain: "page-login-11744.firebaseapp.com",
@@ -61,12 +63,12 @@ const firebaseConfig = {
   messagingSenderId: "418934428800",
   appId: "1:418934428800:web:f98bb98372f3fd65d50265"
 };
-firebase.initializeApp(firebaseConfig);
+const app = initializeApp(firebaseConfig);
+const auth = getAuth(app);
+const db = getFirestore(app);
+const formatTS = (d) => Timestamp.fromDate(d || new Date());
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-const formatTS = d => firebase.firestore.Timestamp.fromDate(d || new Date());
-
+// ---------------- UI ----------------
 const authUI = document.getElementById("auth");
 const welcomeUI = document.getElementById("welcome");
 const userSpan = document.getElementById("user");
@@ -81,42 +83,53 @@ document.getElementById("signupBtn").addEventListener("click", signup);
 document.getElementById("loginBtn").addEventListener("click", login);
 document.getElementById("logoutBtn").addEventListener("click", logout);
 
-function signup() {
+async function signup() {
   const f = document.getElementById("firstName").value.trim();
   const l = document.getElementById("lastName").value.trim();
   const e = document.getElementById("email").value.trim();
   const p = document.getElementById("password").value;
-  if (!f||!l||!e||!p){ alert("Tous les champs sont obligatoires"); return; }
+  if (!f || !l || !e || !p) { alert("Tous les champs sont obligatoires"); return; }
 
-  auth.createUserWithEmailAndPassword(e,p)
-    .then(uc=>{
-      const u = uc.user;
-      db.collection("credentials").doc(u.uid).set({
-        uid: u.uid, firstName: f, lastName: l, email: u.email,
-        createdAt: formatTS(), lastLogin: formatTS()
-      }).then(()=> showWelcome(u));
-    }).catch(err=>alert(err.message));
+  try {
+    const uc = await createUserWithEmailAndPassword(auth, e, p);
+    const u = uc.user;
+    await setDoc(doc(db, "credentials", u.uid), {
+      uid: u.uid,
+      firstName: f,
+      lastName: l,
+      email: u.email,
+      createdAt: formatTS(),
+      lastLogin: formatTS()
+    });
+    showWelcome(u);
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
-function login() {
-  const e=document.getElementById("email").value.trim();
-  const p=document.getElementById("password").value;
-  auth.signInWithEmailAndPassword(e,p).catch(err=>alert(err.message));
+async function login() {
+  const e = document.getElementById("email").value.trim();
+  const p = document.getElementById("password").value;
+  try {
+    await signInWithEmailAndPassword(auth, e, p);
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 function logout() {
-  auth.signOut();
-  authUI.style.display="block";
-  welcomeUI.style.display="none";
-  listEl.innerHTML="";
+  signOut(auth);
+  authUI.style.display = "block";
+  welcomeUI.style.display = "none";
+  listEl.innerHTML = "";
   document.title = "TopMarket - Connexion";
   if (unsubscribeItems) unsubscribeItems();
 }
 
 // ---------------- SHOW USER ----------------
-auth.onAuthStateChanged(u=>{
-  if(u){
-    db.collection("credentials").doc(u.uid).update({ lastLogin: formatTS() });
+onAuthStateChanged(auth, async (u) => {
+  if (u) {
+    await updateDoc(doc(db, "credentials", u.uid), { lastLogin: formatTS() });
     showWelcome(u);
   } else {
     document.title = "TopMarket - Connexion";
@@ -124,87 +137,84 @@ auth.onAuthStateChanged(u=>{
   }
 });
 
-function showWelcome(u){
-  db.collection("credentials").doc(u.uid).get().then(doc=>{
-    if(doc.exists){
-      const d=doc.data();
-      userSpan.innerText = `${d.firstName} ${d.lastName}`;
-      document.title = `${d.firstName} ${d.lastName} - Courses`;
-    }
-  });
-  authUI.style.display="none";
-  welcomeUI.style.display="block";
+async function showWelcome(u) {
+  const docSnap = await getDoc(doc(db, "credentials", u.uid));
+  if (docSnap.exists()) {
+    const d = docSnap.data();
+    userSpan.innerText = `${d.firstName} ${d.lastName}`;
+    document.title = `${d.firstName} ${d.lastName} - Courses`;
+  }
+  authUI.style.display = "none";
+  welcomeUI.style.display = "block";
   loadItemsRealtime(u.uid);
 }
 
 // ---------------- AJOUT ----------------
-document.getElementById("addItemBtn").addEventListener("click", ()=>{
+document.getElementById("addItemBtn").addEventListener("click", async () => {
   const u = auth.currentUser;
   const item = document.getElementById("itemInput").value.trim();
   const qty = parseInt(document.getElementById("quantityInput").value);
-  if(!u || !item || !qty || qty<1) return;
-  const docRef = db.collection("courses").doc();
-  docRef.set({ uidUser: u.uid, uid: docRef.id, item, quantity: qty, addedAt: formatTS() })
-    .then(()=>{
-      document.getElementById("itemInput").value="";
-      document.getElementById("quantityInput").value="";
-      successMsg.style.display="block";
-      setTimeout(()=>successMsg.style.display="none",2500);
-    });
+  if (!u || !item || !qty || qty < 1) return;
+
+  const docRef = doc(collection(db, "courses"));
+  await setDoc(docRef, { uidUser: u.uid, uid: docRef.id, item, quantity: qty, addedAt: formatTS() });
+  document.getElementById("itemInput").value = "";
+  document.getElementById("quantityInput").value = "";
+  successMsg.style.display = "block";
+  setTimeout(() => successMsg.style.display = "none", 2500);
 });
 
-// ---------------- LISTE TEMPS RÉEL (sans orderBy) ----------------
-function loadItemsRealtime(uidUser){
-  if(unsubscribeItems) unsubscribeItems();
-  unsubscribeItems = db.collection("courses")
-    .where("uidUser","==",uidUser)
-    .onSnapshot(snapshot=>{
-      listEl.innerHTML="";
-      snapshot.forEach(doc=>{
-        const d=doc.data();
-        const li=document.createElement("li");
-        li.classList.add("course-item");
-        li.innerHTML = `
-          <div class="course-left">
-            <span>${d.item}</span>
-            <span class="badge">${d.quantity}</span>
-          </div>
-          <div class="course-actions">
-            <button class="edit-btn">✏</button>
-            <button class="delete-btn">🗑</button>
-          </div>`;
-        listEl.appendChild(li);
-        li.querySelector(".edit-btn").addEventListener("click",()=>editItem(doc.id,d.item,d.quantity));
-        li.querySelector(".delete-btn").addEventListener("click",()=>deleteItem(doc.id));
-      });
+// ---------------- LISTE TEMPS RÉEL ----------------
+function loadItemsRealtime(uidUser) {
+  if (unsubscribeItems) unsubscribeItems();
+  const q = query(collection(db, "courses"), where("uidUser", "==", uidUser));
+  unsubscribeItems = onSnapshot(q, (snapshot) => {
+    listEl.innerHTML = "";
+    snapshot.forEach((docSnap) => {
+      const d = docSnap.data();
+      const li = document.createElement("li");
+      li.classList.add("course-item");
+      li.innerHTML = `
+        <div class="course-left">
+          <span>${d.item}</span>
+          <span class="badge">${d.quantity}</span>
+        </div>
+        <div class="course-actions">
+          <button class="edit-btn">✏</button>
+          <button class="delete-btn">🗑</button>
+        </div>`;
+      listEl.appendChild(li);
+      li.querySelector(".edit-btn").addEventListener("click", () => editItem(docSnap.id, d.item, d.quantity));
+      li.querySelector(".delete-btn").addEventListener("click", () => deleteItem(docSnap.id));
     });
+  });
 }
 
 // ---------------- EDIT ----------------
-function editItem(docId, currItem, currQty){
+async function editItem(docId, currItem, currQty) {
   const newItem = prompt("Modifier le nom :", currItem);
-  if(!newItem) return;
+  if (!newItem) return;
   const newQty = parseInt(prompt("Modifier la quantité :", currQty));
-  if(isNaN(newQty) || newQty<1) return;
-  db.collection("courses").doc(docId).update({ item:newItem, quantity:newQty });
+  if (isNaN(newQty) || newQty < 1) return;
+  await updateDoc(doc(db, "courses", docId), { item: newItem, quantity: newQty });
 }
 
 // ---------------- DELETE ----------------
-function deleteItem(docId){
+function deleteItem(docId) {
   itemToDelete = docId;
-  document.getElementById("confirmModal").style.display="flex";
+  document.getElementById("confirmModal").style.display = "flex";
 }
 
-document.getElementById("cancelDeleteBtn").addEventListener("click",()=>{
+document.getElementById("cancelDeleteBtn").addEventListener("click", () => {
   itemToDelete = null;
-  document.getElementById("confirmModal").style.display="none";
+  document.getElementById("confirmModal").style.display = "none";
 });
-document.getElementById("confirmDeleteBtn").addEventListener("click",()=>{
-  if(!itemToDelete) return;
-  db.collection("courses").doc(itemToDelete).delete().then(()=>{
-    document.getElementById("confirmModal").style.display="none";
-    itemToDelete = null;
-  });
+
+document.getElementById("confirmDeleteBtn").addEventListener("click", async () => {
+  if (!itemToDelete) return;
+  await deleteDoc(doc(db, "courses", itemToDelete));
+  document.getElementById("confirmModal").style.display = "none";
+  itemToDelete = null;
 });
 </script>
 </body>
